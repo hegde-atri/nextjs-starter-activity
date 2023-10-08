@@ -76,9 +76,9 @@ Follow the guide on [prettier.nvim](https://github.com/MunifTanjim/prettier.nvim
 Follow the guide on [vim-prisma](https://github.com/prisma/vim-prisma) or
 You can also install prisma through `Mason` and then list `prismals` as your language server 😉. 
 
-## Setting up Prisma and NextAuth
+# Prisma
 
-### Prisma
+## Initialising prisma
 
 Add prisma as a dev dependency.
 
@@ -137,3 +137,169 @@ By default a new prisma client is created on every migration but we can manually
 npx prisma generate
 ```
 
+## Creating a PrismaClient
+
+We want only a single instance of `PrismaClient` that you can import to any file where its needed. Let's create a file `lib/prisma.ts`.
+
+``` bash
+mkdir lib && touch lib/prisma.ts
+```
+
+``` typescript
+import { PrismaClient } from '@prisma/client';
+
+let prisma: PrismaClient;
+
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient();
+} else {
+  if (!global.prisma) {
+    global.prisma = new PrismaClient();
+  }
+  prisma = global.prisma;
+}
+
+export default prisma;
+```
+
+We have only one prisma instance if running locally, but many instances when running in production.
+
+Now you can import it in your files using
+
+``` typescript
+import prisma from '@/lib/prisma';
+```
+
+# NextAuth
+
+Lets now install and integrate NextAuth. Docs are using nextjs 12 so you'll need to follow below.
+
+``` bash
+yarn add next-auth @auth/prisma-adapter
+```
+
+We need to create to variables in your `.env` file
+- NEXTAUTH_SECRET
+Create it using `openssl rand -base64 32`. It'll be used for encoding.
+- NEXTAUTH_URL
+
+So your `.env` file should have
+
+```
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="LFSdf9HOftNtxyhJseKqVQcuFQNzErF+ReIl8+exFjw="
+```
+
+## Google secrets
+
+I'll walk you through this in-person.
+
+- [https://console.cloud.google.com](https://console.cloud.google.com)
+- APIs and Services -> Credentials
+- Create Project (create project)
+- OAuth consent screen (external users) -> add yourself as a test user.
+
+Now create OAuth Client ID
+
+Create Credentials -> OAuth client ID -> Web application 
+
+then
+
+Add URI to Authorised JavaScript origins. `https://localhost:3000`
+
+Add `http://localhost:3000/api/auth/callback/google` as one of the Authorised redirect URI's
+
+Then copy your Client ID and Client secret into the `.env` file.
+
+```
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET=".."
+```
+
+
+We need to add this adapter to `app/api/auth/[...nextauth]/route.ts`
+
+``` javascript
+import { PrismaAdapter } from '@auth/prisma-adapter';
+import { PrismaClient } from '@prisma/client';
+import NextAuth from 'next-auth';
+import GoogleProvider from 'next-auth/providers/google';
+
+const prisma = new PrismaClient();
+
+const handler = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+  ],
+});
+
+export { handler as GET, handler as POST };
+```
+
+
+Let's update our Prisma schema for NextAuth
+
+``` prisma
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+```
+
+Now we run the command
+
+``` bash
+npx prisma migrate dev --name nextauth-models
+npx prisma generate
+```
+
+### Test next-auth
+
+Let's test it by visiting the automatically generated endpoint at [http://localhost:3000/api/auth/signin](http://localhost:3000/api/auth/signin).
+
+After logging in. Lets have a look at the updated database using `npx prisma studio` and visiting
+[http://localhost:5555](http://localhost:5555).
