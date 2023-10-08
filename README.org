@@ -80,7 +80,7 @@ Add this to your settings.json...?
 
 #+begin_src json-with-comments
 // Set the default
-"editor.formatOnSave": false,
+"editor.formatOnSave": true,
 #+end_src
 
 You will also want to install =Prisma= for =.prisma= files.
