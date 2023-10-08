@@ -303,3 +303,5 @@ Let's test it by visiting the automatically generated endpoint at [http://localh
 
 After logging in. Lets have a look at the updated database using `npx prisma studio` and visiting
 [http://localhost:5555](http://localhost:5555).
+
+# Protected routes
