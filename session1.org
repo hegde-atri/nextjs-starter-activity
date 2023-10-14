@@ -1,0 +1,386 @@
+#+title: Session1
+#+author: Atri Hegde
+
+* Table of Contents :TOC:
+- [[#prep][Prep]]
+  - [[#creating-the-app][Creating the app]]
+- [[#prisma][Prisma]]
+  - [[#initialising-prisma][Initialising prisma]]
+  - [[#creating-a-prismaclient][Creating a PrismaClient]]
+- [[#nextauth][NextAuth]]
+  - [[#google-secrets][Google secrets]]
+  - [[#setting-up-session-provider][Setting up session provider.]]
+- [[#resources-for-later][Resources for later.]]
+
+* Prep
+** Creating the app
+
+#+begin_src sh
+yarn create next-app
+#+end_src
+
+#+caption: Creating the app
+[[./init.png]]
+
+- We want to use typescript - typescript > javascript.
+- ESLINT - consistent linting for all of us.
+- Tailwind CSS - easier atomic styling.
+- Don't use =src= dir - we'll use the app dir.
+- Let's use the app router.
+- No need to customise the default import alias. (I chose yes by
+  accident)
+
+*** Prettier
+
+Let's add prettier as a dev dependency.
+
+Run this commands in the project's directory. In my case I need to =cd nextjs-starter-activity=
+
+#+begin_src sh
+yarn add -D prettier@2.8.8 eslint-config-prettier prettier-plugin-tailwindcss@3.3.2
+#+end_src
+
+Modify the =.eslintrc.json= so it contains this instead.
+
+#+begin_src json
+{
+  "extends": ["next/core-web-vitals", "prettier"]
+}
+#+end_src
+
+Now create =.prettierrc.json= with following content.
+
+#+begin_src json
+{
+  "trailingComma": "es5",
+  "semi": true,
+  "tabWidth": 2,
+  "singleQuote": true,
+  "jsxSingleQuote": true,
+  "plugins": ["prettier-plugin-tailwindcss"]
+}
+#+end_src
+
+Now to =package.json= also add this snippet in scripts. This allows us to
+run =yarn format= and format the project.
+
+#+begin_src json
+"scripts": {
+  ...
+  "format": "prettier --check --ignore-path .gitignore .",
+  "format:fix": "prettier --write --ignore-path .gitignore ."
+}
+#+end_src
+
+**** VSCode
+
+Install =Prettier - Code formatter= extension.
+
+Now setup for automatic code formatting.
+
+Add this to your settings.json...?
+
+#+begin_src json-with-comments
+// Set the default
+"editor.formatOnSave": true,
+#+end_src
+
+You will also want to install =Prisma= for =.prisma= files.
+
+**** Neovim
+
+Follow the guide on [[https://github.com/MunifTanjim/prettier.nvim][prettier.nvim]].
+
+Follow the guide on [[https://github.com/prisma/vim-prisma][vim-prisma]]
+or You can also install prisma through =Mason= and then list =prismals= as your language server 😉.
+
+* Prisma
+
+** Initialising prisma
+
+Add prisma as a dev dependency.
+
+#+begin_src sh
+yarn add -D prisma
+#+end_src
+
+Initialise prisma.
+
+#+begin_src sh
+npx prisma init --datasource-provider sqlite
+#+end_src
+
+Add these models to =prisma/schema.prisma=. We will also modify the
+database url from =env(DATABASE_URL)= to =file:./dev.db=.
+
+#+begin_src prisma
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+  posts Post[]
+}
+
+model Post {
+  id        Int     @id @default(autoincrement())
+  title     String
+  content   String?
+  published Boolean @default(false)
+  author    User    @relation(fields: [authorId], references: [id])
+  authorId  Int
+}
+#+end_src
+
+Now to sync your changes to models you made in the file to the database,
+you'll need to run a migration.
+
+#+begin_src sh
+npx prisma migrate dev --name init
+#+end_src
+
+You can check if your models have been created through the GUI
+
+#+begin_src sh
+npx prisma studio
+#+end_src
+
+We will now install prisma client to access our database from Next.js
+
+#+begin_src sh
+yarn add @prisma/client
+#+end_src
+
+By default a new prisma client is created on every migration but we can
+manually generate it to keep up to date.
+
+#+begin_src sh
+npx prisma generate
+#+end_src
+
+** Creating a PrismaClient
+
+We want only a single instance of =PrismaClient= that you can import to any file where its needed. Let's create a file =lib/prisma.ts=.
+
+#+begin_src sh
+mkdir lib && touch lib/prisma.ts
+#+end_src
+
+#+begin_src typescript
+import { PrismaClient } from '@prisma/client';
+
+let prisma: PrismaClient;
+
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient();
+} else {
+  if (!global.prisma) {
+    global.prisma = new PrismaClient();
+  }
+  prisma = global.prisma;
+}
+
+export default prisma;
+#+end_src
+
+We have only one prisma instance if running locally, but many instances when running in production.
+
+Now you can import it in your files using
+
+#+begin_src typescript
+import prisma from '@/lib/prisma';
+#+end_src
+
+* NextAuth
+
+Lets now install and integrate NextAuth. Docs are using nextjs 12 so
+you'll need to follow below.
+
+#+begin_src sh
+yarn add next-auth @auth/prisma-adapter
+#+end_src
+
+We need to create to variables in your =.env= file - NEXTAUTH_SECRET
+Create it using =openssl rand -base64 32=. It'll be used for encoding. -
+NEXTAUTH_URL
+
+So your =.env= file should have
+
+#+begin_example
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="LFSdf9HOftNtxyhJseKqVQcuFQNzErF+ReIl8+exFjw="
+#+end_example
+
+** Google secrets
+
+I'll walk you through this in-person.
+
+- [[https://console.cloud.google.com]]
+- APIs and Services -> Credentials
+- Create Project (create project)
+- OAuth consent screen (external users) -> add yourself as a test user.
+
+Now create OAuth Client ID
+
+Create Credentials -> OAuth client ID -> Web application
+
+Then
+
+Add URI to Authorised JavaScript origins - =https://localhost:3000=
+
+Add =http://localhost:3000/api/auth/callback/google= as one of the
+Authorised redirect URI's.
+
+Then copy your Client ID and Client secret into the =.env= file.
+
+#+begin_example
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET=".."
+#+end_example
+
+We need to add this adapter to =app/api/auth/[...nextauth]/route.ts=
+
+#+begin_src typescript
+import { PrismaAdapter } from '@auth/prisma-adapter';
+import { PrismaClient } from '@prisma/client';
+import NextAuth, { AuthOptions } from 'next-auth';
+import GoogleProvider from 'next-auth/providers/google';
+
+const prisma = new PrismaClient();
+
+export const authOptions: AuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+  ],
+};
+
+export const handler = NextAuth(authOptions);
+
+export { handler as GET, handler as POST };
+#+end_src
+
+Let's update our Prisma schema for NextAuth
+
+#+begin_src prisma
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+#+end_src
+
+Now we run the command
+
+#+begin_src sh
+npx prisma migrate dev --name nextauth-models
+npx prisma generate
+#+end_src
+
+*** Test next-auth
+
+Let's test it by visiting the automatically generated endpoint at
+[[http://localhost:3000/api/auth/signin]].
+
+After logging in. Lets have a look at the updated database using
+=npx prisma studio= and visiting [[http://localhost:5555]].
+
+** Setting up session provider.
+We will now wrap our application in a session provider so we know our session details in all pages.
+
+Create a component called SessionProvider.tsx =app/components/SessionProvider.tsx=.
+
+#+begin_src typescript
+'use client';
+import { SessionProvider } from 'next-auth/react';
+export default SessionProvider;
+#+end_src
+
+This just takes the SessionProvider provided by next-auth by makes it a client component.
+
+Now we are going to put that into our =layout.tsx=.
+
+Make sure to also copy the =components/Navbar.tsx= so that the import works.
+
+#+begin_src typescript
+import './globals.css';
+import type { Metadata } from 'next';
+import { getServerSession } from 'next-auth';
+import SessionProvider from '@/app/components/SessionProvider';
+import { Inter } from 'next/font/google';
+import NavMenu from './components/Navbar';
+import { authOptions } from './api/auth/[...nextauth]/route';
+
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'Create Next App',
+  description: 'Generated by create next app',
+};
+
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const session = await getServerSession(authOptions);
+  return (
+    <html lang='en'>
+      <body className={inter.className}>
+        <SessionProvider session={session}>
+          <main className='flex min-h-screen flex-col items-center justify-between p-24'>
+            <NavMenu />
+            {children}
+          </main>
+        </SessionProvider>
+      </body>
+    </html>
+  );
+}
+#+end_src
+
+
+* Resources for later.
+- Role based authentication - https://www.youtube.com/watch?v=urZ0iMugiiI
+  If we need easy role based actions, for example: user, moderator, admin. (edflix flasback 😵‍💫)
