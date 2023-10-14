@@ -14,6 +14,8 @@ Now that we know the basics our stack, let's start GETting and POSTing data from
   - [[#basic-styling][Basic styling.]]
 - [[#feed-page][Feed page]]
   - [[#creating-the-page][Creating the page]]
+  - [[#dummy-post][Dummy post]]
+  - [[#shadcn-and-zod][shadcn and zod]]
 
 * Page metadata
 
@@ -144,7 +146,11 @@ First lets create the directory for this route =app/feed=.
 
 Then let's create the file =page.tsx= inside this folder.
 
-#+begin_src typescript
+You should now be used to creating new components.
+
+#+begin_src javascript
+'use client';
+
 const Feed = () => {
   return (
     <div>
@@ -154,4 +160,124 @@ const Feed = () => {
 };
 
 export default Feed;
+#+end_src
+
+*** Guard the route.
+
+We will look at a more efficient way of doing this next session.
+
+But for now lets continue by using an if statement.
+
+#+begin_src typescript
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
+
+const Feed = () => {
+  let { data: session } = useSession();
+
+  if (session?.user) {
+    return (
+      // the page
+    );
+  } else {
+      // else redirect
+    redirect('/');
+  }
+};
+
+export default Feed;
+#+end_src
+
+For now lets just render one static postcard.
+
+*** Creating the Post model.
+
+Let go add a new model in our schema called post.
+
+#+begin_src prisma
+model Post {
+  id        String  @id @default(cuid())
+  userId    String
+  title     String
+  published Boolean @default(true)
+  views     Int     @default(0)
+  likes     Int     @default(0)
+
+  user User @relation(fields: [userId], references: [id])
+  // If we want to delete all the users posts if they delete their account.
+  // user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+#+end_src
+
+Now we run =npx prisma migrate dev --name added-posts=.
+
+#+begin_quote
+Prisma is something that is running on the server side. This means that we cannot use prismaClient on the browser.
+So we will be creating API's instead. This is one of the caveats of having a client side Session wrapper.
+#+end_quote
+
+
+** Dummy post
+
+For now let us just create a dummy post using prisma studio (=npx prisma studio=).
+
+Let's also make an api endpoint to get these posts.
+
+#+begin_src typescript
+import prisma from '@/lib/prisma';
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  const posts = await prisma.post.findMany();
+  return NextResponse.json(posts);
+}
+#+end_src
+
+** shadcn and zod
+*** shadcn
+
+This is a UI library. We did not have a need for this, but as we introduce more and more components, this UI library that is very easily and extensively customisable will be very useful.
+
+- [[https://ui.shadcn.com/docs/installation/next][Docs]].
+
+Lets install it with:
+
+#+begin_src shell
+npx shadcn-ui@latest init
+#+end_src
+
+Lets also add the form and button components
+
+#+begin_src shell
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add form
+#+end_src
+
+shadcn doesn't actually install any packages. Instead it creates files inside of =components/ui= that you can use straight away. Or you can modify them to your liking.
+
+*** Zod
+
+Zod is a validation library. It helps us validate the input and provide error messages.
+
+Let's install it.
+
+#+begin_src shell
+yarn add zod
+#+end_src
+
+**** Using zod
+
+Since we will want to validate the same types of objects in multiple locations, we define something called as a zod schema, which contains all the properties and their constraints.
+
+Let's create the folder =lib/validations= for all these schema's. Let's also create a file in this folder =post.ts= which contains the schema for posts.
+
+#+begin_src typescript
+import { z } from 'zod';
+
+export const postSchema = z.object({
+  title: z.string(),
+  description: z.string().max(250),
+});
 #+end_src

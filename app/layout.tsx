@@ -28,7 +28,7 @@ export default async function RootLayout({
 }) {
   const session = await getServerSession(authOptions);
   return (
-    <html lang='en' className='bg-slate-700 text-white'>
+    <html lang='en' className='bg-black bg-slate-700 text-white'>
       <body className={inter.className + ' relative min-h-screen'}>
         <SessionProvider session={session}>
           <NavMenu />
