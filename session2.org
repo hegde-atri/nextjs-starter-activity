@@ -19,6 +19,7 @@ Now that we know the basics our stack, let's start GETting and POSTing data from
   - [[#dummy-post][Dummy post]]
   - [[#shadcn-and-zod][shadcn and zod]]
   - [[#createpost-component][CreatePost Component.]]
+  - [[#createposttsx][CreatePost.tsx]]
 - [[#solo-activity][Solo activity]]
 
 * Page metadata
@@ -525,6 +526,203 @@ Server components cannot have any "interactivity" as it will have no clue about 
 Client components can have interactivity. We will be using =useState= and =useEffect= hooks.
 We will also be using a js/ts library called =zod= to validate the form data before performing any action and give validation errors.
 #+end_quote
+
+Initialise the component as you would and lets create our =form= object. Read the comments in the code snippet.
+
+#+begin_src typescript
+// Mark as client component
+'use client';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+import { useForm } from 'react-hook-form';
+import { postSchema } from '@/lib/validations/post';
+
+const CreatePost = () => {
+
+  // We pass in postSchema to z.infer which is the method which will
+  // validate our models and provide errors.
+
+  // Define our form.
+  // useForm is from the react-hook-form library
+  const form = useForm<z.infer<typeof postSchema>>({
+    // We are making it use zod as it's resolver.
+    resolver: zodResolver(postSchema),
+    defaultValues: {
+        // If for example this is the profile page we can pre-populate
+        // the fields with their existing information
+      title: '',
+      description: '',
+    },
+  });
+  // Define a submit handler.
+  function onSubmit(values: z.infer<typeof postSchema>) {
+      // This will have the POST request to create the new post.
+  }
+
+  return (
+      <div><h1>Create Post Component</h1></div>
+  );
+};
+
+export default CreatePost;
+#+end_src
+
+*** Quick crash course on defining our form.
+
+First we wrap our form with =Form= from our =shadcn= and provide our form object.
+
+#+begin_quote
+We are using the ui elements from =shadcn= that we just installed.
+The required imports are:
+#+end_quote
+
+#+begin_src typescript
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+#+end_src
+
+#+begin_src html
+<!-- Our form wrapper -->
+<Form {...form}>
+  <!-- HTML form element -->
+  <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
+    <!-- Each input will be wrapped in a FormField -->
+        <FormField
+          <!-- give the control to our form then .control -->
+          control={form.control}
+          name='title'
+          render={({ field }) => (
+            <FormItem>
+              <!-- Form label -->
+              <FormLabel>Title</FormLabel>
+              <!-- FormControl, could be multiple like radio buttons -->
+              <FormControl>
+                <Input
+                  <!-- Here we are using just shadcn's input element -->
+                  className='border-none bg-slate-800'
+                  placeholder='Title'
+                  {...field}
+                />
+              </FormControl>
+              <!-- Description -->
+              <FormDescription>
+                This is your public display name.
+              </FormDescription>
+              <!-- Form message is for the errors -->
+              <FormMessage />
+            </FormItem>
+          )}
+            <!-- Closing tag for FormField lol -->
+        />
+        <!-- repeat for all other fields -->
+  </form>
+</Form>
+#+end_src
+
+
+
+** CreatePost.tsx
+
+Here's its final form
+
+#+begin_src typescript
+'use client';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useForm } from 'react-hook-form';
+import { postSchema } from '@/lib/validations/post';
+
+const CreatePost = () => {
+
+  const form = useForm<z.infer<typeof postSchema>>({
+    resolver: zodResolver(postSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+    },
+  });
+
+  function onSubmit(values: z.infer<typeof postSchema>) {
+      // TODO
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
+        <FormField
+          control={form.control}
+          name='title'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title</FormLabel>
+              <FormControl>
+                <Input
+                  className='border-none bg-slate-800'
+                  placeholder='Title'
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                This is your public display name.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name='description'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea
+                  className='border-none bg-slate-800'
+                  placeholder='Description'
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription></FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type='submit'>Submit</Button>
+      </form>
+    </Form>
+  );
+};
+
+export default CreatePost;
+#+end_src
+
+
+I haven't had enough time to create the POST method, so we'll do it together :)
 
 * Solo activity
 
