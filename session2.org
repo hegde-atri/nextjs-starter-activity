@@ -87,6 +87,10 @@ This piece of typescript code produced the following HTML.
 <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="16x16"/>
 #+end_src
 
+#+begin_quote
+Note that to change the tab icon, we need to replace the default =favicon.ico=.
+#+end_quote
+
 * Creating a home page
 
 Let's get some of the prebuilt Next.js css.
@@ -267,6 +271,8 @@ Checking auth state on the server side is a bit cumbersome but we can use our =p
 
 Here we have the =await= keyword in multiple places. Next.js 13 allows us to create a =loading.tsx= with default export of =Loading= and it will automatically display this loading screen until the data is fetched.
 
+Let's modify the file we created earlier =app/feed/page.tsx=.
+
 #+begin_src typescript
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../api/auth/[...nextauth]/route';
@@ -405,12 +411,14 @@ Just type the url =http://localhost:3000/api/posts= and select the =GET= method.
 
 [[./insomnium.png]]
 
-Now that we've verified that our API works, let's get to making the client feed page. Make it accessible to this url =/client=. I've also added a =loading.tsx= just like earlier to give a nice animation whilst the posts load.
+Now that we've verified that our API works, let's get to making the client feed page. Make it accessible to this url =/client=. I've also added a =loading.tsx= just like earlier to give a nice animation whilst the posts load. But since it's the server side component it will not automatically not wait for the fetch inside the component.
+
+Therefore we will use =useState()= to make a variable =loading=. Depending on =loading= we will either display the page or the loading screen.
 
 #+begin_src typescript
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Loading from './loading';
 import { redirect } from 'next/navigation';
 import type { Post } from '@prisma/client';
@@ -430,25 +438,24 @@ const Feed = () => {
       });
   }, []);
 
+    // First check if a session exists.
   if (session) {
+      // Then check if all the data has loaded.
     if (loading) {
       return <Loading />;
     }
     return (
       <div>
-        <Suspense fallback={<Loading />}>
-          <div className='mx-auto w-1/2'>
-            {posts.map((post, index) => {
-              return (
-                <div className='rounded-md bg-slate-800 p-2 my-2' key={index}>
-                  <div className='font-3xl'>{post.title}</div>
-                  <div>{post.description}</div>
-                </div>
-              );
-            })}
-            <CreatePost />
-          </div>
-        </Suspense>
+        <div className='mx-auto w-1/2'>
+          {posts.map((post, index) => {
+            return (
+              <div className='my-2 rounded-md bg-slate-800 p-2' key={index}>
+                <div className='font-3xl'>{post.title}</div>
+                <div>{post.description}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   } else {
