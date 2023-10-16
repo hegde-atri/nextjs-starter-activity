@@ -12,10 +12,12 @@ Now that we know the basics our stack, let's start GETting and POSTing data from
 - [[#creating-a-home-page][Creating a home page]]
   - [[#icons][Icons]]
   - [[#basic-styling][Basic styling.]]
+- [[#more-on-components][More on components.]]
 - [[#feed-page][Feed page]]
   - [[#creating-the-page][Creating the page]]
   - [[#dummy-post][Dummy post]]
   - [[#shadcn-and-zod][shadcn and zod]]
+- [[#solo-activity][Solo activity]]
 
 * Page metadata
 
@@ -134,7 +136,49 @@ Basic landing page. We also have some conditional rendering at the bottom.
 
 You now have a basic home screen.
 
+* More on components.
 
+Let's change our login button on the navbar now. I want to accomplish two things.
+1. It should go back to the page the user clicked the button from.
+2. Directly take us to the google account selector without the visiting =/api/auth/signin=.
+
+Let's first abstract this login button to its own component.
+
+I am creating mine at =@/components/auth/GoogleSignInButton.tsx=.
+
+Lets create a simple react arrow function component which just returns the we already made.
+
+I am also going to add Google logo from tabler-icons.
+
+For the =onClick()= action of this button we can specify that we want to use the google provider.
+
+Here I will also provide a =callbackUrl= which will inform =signIn()= from next-auth where to redirect to after a user has loggedIn. This is just a little bit of a knowledge bomb.
+
+I want this button to take in an argument for this redirect, but can optionally be nil. e.i. it will redirect to whatever page the button was pressed from.
+
+#+begin_src typescript
+import { IconBrandGoogle } from '@tabler/icons-react';
+import { signIn } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
+
+interface buttonProps {
+  callbackUrl?: string;
+}
+
+const GoogleSignInButton = (props: buttonProps) => {
+  const url = props.callbackUrl ?? useSearchParams().get('callbackUrl') ?? '';
+  return (
+    <button
+      className='flex items-center rounded-md bg-slate-900 p-2 transition duration-300 hover:bg-slate-950'
+      onClick={() => signIn('google', { callbackUrl: url })}
+    >
+      <p className='pr-2'>Login</p> <IconBrandGoogle height={25} width={25} />
+    </button>
+  );
+};
+
+export default GoogleSignInButton;
+#+end_src
 
 * Feed page
 
@@ -148,9 +192,9 @@ Then let's create the file =page.tsx= inside this folder.
 
 You should now be used to creating new components.
 
-#+begin_src javascript
-'use client';
+We are going to be using server components where possible.
 
+#+begin_src javascript
 const Feed = () => {
   return (
     <div>
@@ -164,26 +208,20 @@ export default Feed;
 
 *** Guard the route.
 
-We will look at a more efficient way of doing this next session.
-
-But for now lets continue by using an if statement.
+Lets continue by using an if statement.
 
 #+begin_src typescript
-'use client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../api/auth/[...nextauth]/route';
 
-import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
-
-const Feed = () => {
-  let { data: session } = useSession();
-
-  if (session?.user) {
+const Feed = async () => {
+  const session = await getServerSession(authOptions);
+  if (session) {
     return (
-      // the page
+      <div>
+        <p>Feed page</p>
+      </div>
     );
-  } else {
-      // else redirect
-    redirect('/');
   }
 };
 
@@ -221,9 +259,12 @@ So we will be creating API's instead. This is one of the caveats of having a cli
 
 ** Dummy post
 
+*** Server side
+*** Client side
+
 For now let us just create a dummy post using prisma studio (=npx prisma studio=).
 
-Let's also make an api endpoint to get these posts.
+Let's also make an api endpoint to get these posts (=/api/posts= but file should be =app/api/posts/route.ts=).
 
 #+begin_src typescript
 import prisma from '@/lib/prisma';
@@ -281,3 +322,7 @@ export const postSchema = z.object({
   description: z.string().max(250),
 });
 #+end_src
+
+* Solo activity
+
+Create a login page to replace the default one provided by next-auth.

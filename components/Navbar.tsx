@@ -1,20 +1,23 @@
 'use client';
 import Link from 'next/link';
-import { signIn, signOut, useSession } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import Image from 'next/image';
+import GoogleSignInButton from './auth/GoogleSignInButton';
 
 const AuthButton = () => {
   const { data: session } = useSession();
   if (session) {
     return (
       <div className='flex items-center space-x-2'>
-        <img
-          className='rounded-full'
-          src={session?.user?.image!}
-          width={45}
-          height={45}
-        />
-        <p className='text-gray-200'>{session?.user?.name}</p>
+        <Link className='flex items-center space-x-2' href='/profile'>
+          <img
+            className='rounded-full'
+            src={session?.user?.image!}
+            width={45}
+            height={45}
+          />
+          <p className='text-gray-200'>{session?.user?.name}</p>
+        </Link>
         <button
           className='rounded-md bg-slate-900 p-2 transition duration-300 hover:bg-slate-950'
           onClick={() => signOut()}
@@ -26,12 +29,7 @@ const AuthButton = () => {
   }
   return (
     <div className='flex space-x-2'>
-      <button
-        className='rounded-md bg-slate-900 p-2 transition duration-300 hover:bg-gray-700'
-        onClick={() => signIn()}
-      >
-        Sign in
-      </button>
+      <GoogleSignInButton />
     </div>
   );
 };
