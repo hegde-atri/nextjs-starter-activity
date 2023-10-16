@@ -1,5 +1,6 @@
 #+title: Session2
 #+author: Atri Hegde
+#+startup: showall
 
 * Preface
 
@@ -17,6 +18,7 @@ Now that we know the basics our stack, let's start GETting and POSTing data from
   - [[#creating-the-page][Creating the page]]
   - [[#dummy-post][Dummy post]]
   - [[#shadcn-and-zod][shadcn and zod]]
+  - [[#createpost-component][CreatePost Component.]]
 - [[#solo-activity][Solo activity]]
 
 * Page metadata
@@ -260,6 +262,99 @@ So we will be creating API's instead. This is one of the caveats of having a cli
 ** Dummy post
 
 *** Server side
+
+Checking auth state on the server side is a bit cumbersome but we can use our =prisma= object so we don't have to create an api for it.
+
+Here we have the =await= keyword in multiple places. Next.js 13 allows us to create a =loading.tsx= with default export of =Loading= and it will automatically display this loading screen until the data is fetched.
+
+#+begin_src typescript
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../api/auth/[...nextauth]/route';
+import { redirect } from 'next/navigation';
+import prisma from '@/lib/prisma';
+import PostCard from '@/components/posts/PostCard';
+
+const Feed = async () => {
+  const session = await getServerSession(authOptions);
+  let posts = await prisma.post.findMany();
+
+  if (session) {
+    return (
+      <div>
+        <div className='mx-auto w-1/2'>
+          {posts.map((post, index) => {
+            return (
+              <div className='my-2'>
+                <PostCard
+                  title={post.title}
+                  description={post.description}
+                  id={post.userId}
+                  key={index}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  } else {
+    redirect('/');
+  }
+};
+
+export default Feed;
+#+end_src
+
+Try both of these loading screens out and keep what you like!
+
+**** Loading 1
+
+#+begin_src typescript
+const Loading = () => {
+  return (
+    <div
+      className='fixed left-0 top-0 flex h-screen w-screen items-center
+  justify-center'
+    >
+      <div
+        className='h-16 w-16 animate-spin rounded-full border-b-2 border-t-2
+  border-gray-100'
+      ></div>
+    </div>
+  );
+};
+
+export default Loading;
+#+end_src
+
+**** Loading 2
+
+#+begin_src typescript
+const Skeleton = () => {
+  return (
+    <div className='mx-auto my-2 w-1/2 animate-pulse rounded-md bg-slate-800 p-2'>
+      <h1 className='mx-auto my-1 h-6 w-48 rounded-md bg-slate-700 text-center text-xl font-bold'></h1>
+      <div className='mx-auto mt-2 h-4 w-3/4 rounded-md bg-slate-700 p-2'></div>
+      <div className='mx-auto mt-2 h-4 w-3/4 rounded-md bg-slate-700 p-2'></div>
+      <div className='mx-auto mt-2 h-4 w-3/4 rounded-md bg-slate-700 p-2'></div>
+      <div className='mx-auto mt-2 h-4 w-3/4 rounded-md bg-slate-700 p-2'></div>
+      <p className='mx-auto my-1 my-1 h-4 w-1/5 animate-pulse rounded-md bg-slate-700 text-center italic'></p>
+    </div>
+  );
+};
+const Loading = () => {
+  return (
+    <>
+      <Skeleton />
+      <Skeleton />
+      <Skeleton />
+    </>
+  );
+};
+
+export default Loading;
+#+end_src
+
 *** Client side
 
 For now let us just create a dummy post using prisma studio (=npx prisma studio=).
@@ -268,12 +363,100 @@ Let's also make an api endpoint to get these posts (=/api/posts= but file should
 
 #+begin_src typescript
 import prisma from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 export async function GET() {
+  // No authorisation required. But we can change that
   const posts = await prisma.post.findMany();
+  setTimeout(() => {}, 2000);
   return NextResponse.json(posts);
 }
+#+end_src
+
+We can test this using multiple ways. My preferred method is using =httpie= in the command line for small simple requests and for the more complex ones (providing a body for POST method or authorisation headers) I use =Insomnium=.
+
+- [[https://github.com/ArchGPT/insomnium/releases/tag/core%400.2.1-b][Windows download]] for Insomnium.
+- =insomnium-bin= available from the AUR.
+
+#+begin_quote
+Note: Not Insomnia but Insomnium.
+#+end_quote
+
+**** curl
+
+#+begin_src shell
+curl http://localhost:3000/api/posts
+#+end_src
+
+**** httpie
+
+#+begin_src shell
+# Install it - Arch Linux
+sudo pacman -S httpie
+# using it
+http GET http://localhost:3000/api/posts
+#+end_src
+
+**** Insomnium :ATTACH:
+
+Just type the url =http://localhost:3000/api/posts= and select the =GET= method. All you have to do is click send and you should get a response.
+
+[[./insomnium.png]]
+
+Now that we've verified that our API works, let's get to making the client feed page. Make it accessible to this url =/client=. I've also added a =loading.tsx= just like earlier to give a nice animation whilst the posts load.
+
+#+begin_src typescript
+'use client';
+
+import { Suspense, useEffect, useState } from 'react';
+import Loading from './loading';
+import { redirect } from 'next/navigation';
+import type { Post } from '@prisma/client';
+import { useSession } from 'next-auth/react';
+
+const Feed = () => {
+  const { data: session } = useSession();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/posts')
+      .then((res) => res.json())
+      .then((data) => {
+        setPosts(data as Post[]);
+        setLoading(false);
+      });
+  }, []);
+
+  if (session) {
+    if (loading) {
+      return <Loading />;
+    }
+    return (
+      <div>
+        <Suspense fallback={<Loading />}>
+          <div className='mx-auto w-1/2'>
+            {posts.map((post, index) => {
+              return (
+                <div className='rounded-md bg-slate-800 p-2 my-2' key={index}>
+                  <div className='font-3xl'>{post.title}</div>
+                  <div>{post.description}</div>
+                </div>
+              );
+            })}
+            <CreatePost />
+          </div>
+        </Suspense>
+      </div>
+    );
+  } else {
+    redirect('/');
+  }
+};
+
+export default Feed;
 #+end_src
 
 ** shadcn and zod
@@ -322,6 +505,19 @@ export const postSchema = z.object({
   description: z.string().max(250),
 });
 #+end_src
+
+** CreatePost Component.
+
+Now let's create a component for creating a post. There are a lot of patterns we can follow for this.
+
+This also shows that you can "embed" a =client= component into a =server= component.
+
+#+begin_quote
+Server components cannot have any "interactivity" as it will have no clue about the user's state. We can still use standard HTML form actions, but we are NOT using that.
+
+Client components can have interactivity. We will be using =useState= and =useEffect= hooks.
+We will also be using a js/ts library called =zod= to validate the form data before performing any action and give validation errors.
+#+end_quote
 
 * Solo activity
 
