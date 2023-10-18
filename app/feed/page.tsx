@@ -15,7 +15,7 @@ const Feed = async () => {
         <div className='mx-auto w-1/2'>
           {posts.map((post, index) => {
             return (
-              <div className='my-2'>
+              <div className='my-2' key={index}>
                 <PostCard
                   title={post.title}
                   description={post.description}

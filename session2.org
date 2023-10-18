@@ -20,6 +20,7 @@ Now that we know the basics our stack, let's start GETting and POSTing data from
   - [[#shadcn-and-zod][shadcn and zod]]
   - [[#createpost-component][CreatePost Component.]]
   - [[#createposttsx][CreatePost.tsx]]
+  - [[#post-request][Post Request]]
 - [[#solo-activity][Solo activity]]
 
 * Page metadata
@@ -721,8 +722,68 @@ const CreatePost = () => {
 export default CreatePost;
 #+end_src
 
-
 I haven't had enough time to create the POST method, so we'll do it together :)
+
+** Post Request
+
+To send a post request let's go to the posts api route handler and add this.
+
+#+begin_src typescript
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  const user = await prisma.user.findFirst({
+    where: {
+      email: session?.user?.email,
+    },
+  });
+
+  let post = await postSchema.parseAsync(await req.json());
+
+  let res = await prisma.post.create({
+    data: {
+      title: post.title,
+      description: post.description,
+      userId: user?.id!,
+    },
+  });
+
+  return NextResponse.json(res);
+}
+#+end_src
+
+We can then change our =handleSubmit()= as follows to do the following
+
+1. Optional: Add a loading state to the button.
+2. Send the API request
+3. If successful clear the form indicating its successful.
+4. If unsuccessful display an error message
+
+#+begin_src typescript
+  async function onSubmit(values: z.infer<typeof postSchema>) {
+    try {
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (response.ok) {
+        form.reset;
+      } else {
+        console.log('Error publishing post');
+      }
+    } catch (error) {
+      console.log('Error submitting post: ' + error);
+    }
+  }
+#+end_src
+
+#+begin_quote
+I have run =npx shadcn-ui@latest add toast= to get a toast component which I display if form fails rather than just a =console.log()=.
+#+end_quote
+
 
 * Solo activity
 

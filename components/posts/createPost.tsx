@@ -17,8 +17,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { postSchema } from '@/lib/validations/post';
+import { useState } from 'react';
+import { useToast } from '../ui/use-toast';
+import { useRouter } from 'next/navigation';
+import { Toaster } from '../ui/toaster';
 
 const CreatePost = () => {
+  const [loadingButton, setLoadingButton] = useState(false);
+  const { toast } = useToast();
+
   const form = useForm<z.infer<typeof postSchema>>({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -27,8 +34,38 @@ const CreatePost = () => {
     },
   });
 
-  function onSubmit(values: z.infer<typeof postSchema>) {
-    // TODO
+  async function onSubmit(values: z.infer<typeof postSchema>) {
+    try {
+      setLoadingButton(true);
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (response.ok) {
+        console.log('hit');
+        setLoadingButton(false);
+        useRouter().refresh();
+        form.reset();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error publishing post',
+          description: 'Try again in a few minutes',
+        });
+        setLoadingButton(false);
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error publishing post',
+        description: 'Try again in a few minutes',
+      });
+      setLoadingButton(false);
+    }
   }
 
   return (
@@ -72,8 +109,11 @@ const CreatePost = () => {
             </FormItem>
           )}
         />
-        <Button type='submit'>Submit</Button>
+        <Button loading={loadingButton} type='submit'>
+          Submit
+        </Button>
       </form>
+      <Toaster />
     </Form>
   );
 };
