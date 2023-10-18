@@ -770,7 +770,7 @@ We can then change our =handleSubmit()= as follows to do the following
       });
 
       if (response.ok) {
-        form.reset;
+        form.reset();
       } else {
         console.log('Error publishing post');
       }
@@ -783,6 +783,9 @@ We can then change our =handleSubmit()= as follows to do the following
 #+begin_quote
 I have run =npx shadcn-ui@latest add toast= to get a toast component which I display if form fails rather than just a =console.log()=.
 #+end_quote
+
+Make sure to also test that form work as expected when your api call errors.
+You might want to put =<CreatePost />= at the top of your posts or make a delete button on existing posts to get rid of the clutter.
 
 
 * Solo activity

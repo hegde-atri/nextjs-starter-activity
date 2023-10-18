@@ -20,14 +20,15 @@ export async function POST(req: Request) {
 
   let post = await postSchema.parseAsync(await req.json());
 
-  // let res = await prisma.post.create({
-  //   data: {
-  //     title: post.title,
-  //     description: post.description,
-  //     userId: user?.id!,
-  //   },
-  // });
-  return NextResponse.error();
+  let res = await prisma.post.create({
+    data: {
+      title: post.title,
+      description: post.description,
+      userId: user?.id!,
+    },
+  });
 
-  // return NextResponse.json(res);
+  // return NextResponse.error();
+
+  return NextResponse.json(res);
 }
