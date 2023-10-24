@@ -86,4 +86,4 @@ export const getServerAuthSession = () => getServerSession(authOptions);
 
 * New project.
 
-Now head over to the next part which is the [todo app](https://github.com/hegde-atri/nextjs-todo-app).
+Now head over to the next part which is the [[https://github.com/hegde-atri/nextjs-todo-app][todo app]].
