@@ -25,6 +25,7 @@ import { Toaster } from '../ui/toaster';
 const CreatePost = () => {
   const [loadingButton, setLoadingButton] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof postSchema>>({
     resolver: zodResolver(postSchema),
@@ -48,9 +49,10 @@ const CreatePost = () => {
       if (response.ok) {
         console.log('hit');
         setLoadingButton(false);
-        useRouter().refresh();
+        router.refresh();
         form.reset();
       } else {
+        console.log('sick');
         toast({
           variant: 'destructive',
           title: 'Error publishing post',
@@ -59,6 +61,8 @@ const CreatePost = () => {
         setLoadingButton(false);
       }
     } catch (error) {
+      console.log('Error:', error);
+      console.log('not sick');
       toast({
         variant: 'destructive',
         title: 'Error publishing post',

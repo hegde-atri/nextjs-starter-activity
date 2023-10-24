@@ -12,23 +12,25 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  const user = await prisma.user.findFirst({
-    where: {
-      email: session?.user?.email,
-    },
-  });
+  if (session?.user) {
+    const user = await prisma.user.findFirst({
+      where: {
+        email: session?.user?.email,
+      },
+    });
 
-  let post = await postSchema.parseAsync(await req.json());
+    let post = await postSchema.parseAsync(await req.json());
 
-  let res = await prisma.post.create({
-    data: {
-      title: post.title,
-      description: post.description,
-      userId: user?.id!,
-    },
-  });
+    let res = await prisma.post.create({
+      data: {
+        title: post.title,
+        description: post.description,
+        userId: user?.id!,
+      },
+    });
 
-  // return NextResponse.error();
-
-  return NextResponse.json(res);
+    return NextResponse.json(res);
+  } else {
+    return NextResponse.error();
+  }
 }

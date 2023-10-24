@@ -4,3 +4,4 @@
 * Sessions
 - [[./session1.org][Session 1]]
 - [[./session2.org][Session 2]]
+- [[./session3.org][Session 3]]
