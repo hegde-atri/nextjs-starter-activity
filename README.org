@@ -1,6 +1,8 @@
 #+title: README
 #+author: Atri Hegde
 
+You can find part 2 of Next.js series that uses the T3 stack at [[https://github.com/hegde-atri/nextjs-todo-app][hegde-atri/nextjs-todo-app]].
+
 * Sessions
 - [[./session1.org][Session 1]]
 - [[./session2.org][Session 2]]
